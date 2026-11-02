@@ -134,15 +134,37 @@ public final class Testes {
     }
     private static void protocoloRpc() throws Exception {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        ProtocoloRpc.Requisicao req = new ProtocoloRpc.Requisicao("REGISTRAR", 400, 1, 88,
+        ProtocoloRpc.Requisicao req = new ProtocoloRpc.Requisicao(
+                ProtocoloRpc.REFERENCIA_RESERVAS, "REGISTRAR", 400, 1, 88,
                 "Ana Souza", LocalDate.parse("2027-06-01").toEpochDay(),
                 LocalDate.parse("2027-06-04").toEpochDay(), 2);
         ProtocoloRpc.enviarRequisicao(buffer, req);
         ProtocoloRpc.Requisicao decodificada = ProtocoloRpc.lerRequisicao(
                 new ByteArrayInputStream(buffer.toByteArray()));
-        checar(decodificada.hospedeNome().equals("Ana Souza") && decodificada.unidades() == 2,
-                "Request é empacotado e desempacotado");
+        checar(decodificada.objectReference().equals(ProtocoloRpc.REFERENCIA_RESERVAS)
+                && decodificada.methodID().equals("REGISTRAR")
+                && decodificada.hospedeNome().equals("Ana Souza") && decodificada.unidades() == 2,
+                "Request transporta referência remota, método e argumentos");
+        ProtocoloRpc.Requisicao publicar = new ProtocoloRpc.Requisicao(
+                ProtocoloRpc.REFERENCIA_MULTICAST, "PUBLICAR",
+                List.of("aluno", "1234", "ALERTA", "Última suíte"));
+        buffer.reset();
+        ProtocoloRpc.enviarRequisicao(buffer, publicar);
+        ProtocoloRpc.Requisicao publicarDecodificada = ProtocoloRpc.lerRequisicao(
+                new ByteArrayInputStream(buffer.toByteArray()));
+        checar(publicarDecodificada.argumentos().equals(publicar.argumentos()),
+                "Request remoto serializa argumentos textuais do multicast");
         RpcServidor servidor = new RpcServidor();
+        var loginMulticast = servidor.processar(new ProtocoloRpc.Requisicao(
+                ProtocoloRpc.REFERENCIA_MULTICAST, "AUTENTICAR", List.of("aluno", "1234")));
+        checar(loginMulticast.sucesso(), "Objeto remoto multicast autentica cliente");
+        var loginNegado = servidor.processar(new ProtocoloRpc.Requisicao(
+                ProtocoloRpc.REFERENCIA_MULTICAST, "AUTENTICAR", List.of("aluno", "errada")));
+        checar(!loginNegado.sucesso(), "Objeto remoto multicast recusa credenciais inválidas");
+        var publicarNegado = servidor.processar(new ProtocoloRpc.Requisicao(
+                ProtocoloRpc.REFERENCIA_MULTICAST, "PUBLICAR",
+                List.of("aluno", "errada", "ALERTA", "Teste")));
+        checar(!publicarNegado.sucesso(), "Publicação multicast exige credenciais válidas");
         ProtocoloRpc.Resposta registrada = servidor.processar(decodificada);
         checar(registrada.sucesso() && registrada.valorCentavos() == 210000,
                 "Servidor registra a reserva e calcula as diárias");
@@ -153,7 +175,7 @@ public final class Testes {
         checar(resposta.reservas().get(0).getHospede().getNome().equals("Ana Souza"),
                 "Reply serializa e reconstitui Reserva");
         ProtocoloRpc.Resposta listagem = servidor.processar(new ProtocoloRpc.Requisicao(
-                "LISTAR", 0, 0, 0, "", 0, 0, 0));
+                ProtocoloRpc.REFERENCIA_RESERVAS, "LISTAR", 0, 0, 0, "", 0, 0, 0));
         buffer.reset();
         ProtocoloRpc.enviarResposta(buffer, listagem);
         List<MeioHospedagem> reconstruidos = ProtocoloRpc.lerResposta(
@@ -164,13 +186,19 @@ public final class Testes {
                 && ((Motel) reconstruidos.get(1)).isGaragemPrivativa()
                 && ((Pousada) reconstruidos.get(2)).isCafeDaManhaIncluso(),
                 "RPC preserva atributos específicos das subclasses");
-        var efetivar = new ProtocoloRpc.Requisicao("EFETIVAR", 400, 0, 0, "", 0, 0, 0);
+        var efetivar = new ProtocoloRpc.Requisicao(
+                ProtocoloRpc.REFERENCIA_RESERVAS, "EFETIVAR", 400, 0, 0, "", 0, 0, 0);
         checar(servidor.processar(efetivar).reservas().get(0).getStatus()
                 == Reserva.Status.EFETIVADA, "Efetivar remotamente");
         checar(!servidor.processar(req).sucesso(), "Servidor recusa ID duplicado");
-        var cancelar = new ProtocoloRpc.Requisicao("CANCELAR", 400, 0, 0, "", 0, 0, 0);
+        var cancelar = new ProtocoloRpc.Requisicao(
+                ProtocoloRpc.REFERENCIA_RESERVAS, "CANCELAR", 400, 0, 0, "", 0, 0, 0);
         checar(servidor.processar(cancelar).reservas().get(0).getStatus()
                 == Reserva.Status.CANCELADA, "Cancelar remotamente");
+        var referenciaInvalida = new ProtocoloRpc.Requisicao(
+                "objeto.inexistente", "LISTAR", 0, 0, 0, "", 0, 0, 0);
+        checar(!servidor.processar(referenciaInvalida).sucesso(),
+                "Servidor recusa referência de objeto remoto desconhecida");
     }
     private static void xmlExtra() throws Exception {
         String xml = XmlVotacao.requisicao("ADICIONAR", Map.of("nome", "Opção & alternativa"));

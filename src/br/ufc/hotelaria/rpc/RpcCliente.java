@@ -2,6 +2,7 @@ package br.ufc.hotelaria.rpc;
 
 import br.ufc.hotelaria.modelo.MeioHospedagem;
 import br.ufc.hotelaria.modelo.Reserva;
+import java.io.IOException;
 import java.net.Socket;
 import java.time.LocalDate;
 import java.util.Locale;
@@ -43,20 +44,27 @@ public final class RpcCliente {
             }
             default -> { ajuda(); return; }
         }
-        ProtocoloRpc.Requisicao requisicao = new ProtocoloRpc.Requisicao(op, reservaId,
+        ProtocoloRpc.Requisicao requisicao = new ProtocoloRpc.Requisicao(
+                ProtocoloRpc.REFERENCIA_RESERVAS, op, reservaId,
                 meioId, hospedeId, nome, entrada, saida, unidades);
+        ProtocoloRpc.Resposta resposta = invocar(host, porta, requisicao);
+        System.out.println("Sucesso: " + resposta.sucesso() + " | " + resposta.mensagem());
+        for (MeioHospedagem meio : resposta.meios()) System.out.println(meio);
+        for (Reserva reserva : resposta.reservas()) System.out.println(reserva);
+        if (resposta.disponibilidade() >= 0)
+            System.out.println("Unidades disponíveis: " + resposta.disponibilidade());
+        if (resposta.valorCentavos() > 0)
+            System.out.printf("Valor da reserva: R$ %d,%02d%n",
+                    resposta.valorCentavos() / 100, resposta.valorCentavos() % 100);
+    }
+
+    public static ProtocoloRpc.Resposta invocar(String host, int porta,
+                                                ProtocoloRpc.Requisicao requisicao)
+            throws IOException {
         try (Socket socket = new Socket(host, porta)) {
             socket.setSoTimeout(10_000);
             ProtocoloRpc.enviarRequisicao(socket.getOutputStream(), requisicao);
-            ProtocoloRpc.Resposta resposta = ProtocoloRpc.lerResposta(socket.getInputStream());
-            System.out.println("Sucesso: " + resposta.sucesso() + " | " + resposta.mensagem());
-            for (MeioHospedagem meio : resposta.meios()) System.out.println(meio);
-            for (Reserva reserva : resposta.reservas()) System.out.println(reserva);
-            if (resposta.disponibilidade() >= 0)
-                System.out.println("Unidades disponíveis: " + resposta.disponibilidade());
-            if (resposta.valorCentavos() > 0)
-                System.out.printf("Valor da reserva: R$ %d,%02d%n",
-                        resposta.valorCentavos() / 100, resposta.valorCentavos() % 100);
+            return ProtocoloRpc.lerResposta(socket.getInputStream());
         }
     }
     private static void ajuda() {

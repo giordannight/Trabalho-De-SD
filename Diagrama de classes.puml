@@ -62,7 +62,7 @@ MeioHospedagem <|-- Hotel
 MeioHospedagem <|-- Motel
 MeioHospedagem <|-- Pousada
 ComplexoTuristico "1" o-- "0..*" MeioHospedagem : agrega
-Reserva "0..*" --> "1" Hospede : hospede
+Reserva "0..*" o-- "1" Hospede : agrega
 Reserva "0..*" ..> "1" MeioHospedagem : referencia ID
 HospedagemService --> ComplexoTuristico : utiliza
 ReservaService ..|> Reservas
@@ -72,6 +72,10 @@ ReservaService --> Reserva : gerencia
 note right of ComplexoTuristico
  Agregação: hospedar/remover um meio do
  complexo NÃO cria/destrói a instância.
+end note
+note right of Reserva
+ Agregação: a reserva referencia um hóspede
+ fornecido pelo cliente do serviço.
 end note
 note right of ReservaService
  synchronized protege a verificação

@@ -1,10 +1,12 @@
 package br.ufc.hotelaria.multicast;
 
-/** Portas separadas: TCP de autenticação; UDP multicast de mensagens. */
+/** Configuração do objeto remoto TCP e do grupo UDP multicast. */
 public final class MulticastConfig {
     public static final String GRUPO = "230.0.0.1";
+    public static final int PORTA_RPC = 5002;
     public static final int PORTA_UDP = 5004;
-    public static final int PORTA_AUTENTICACAO = 5003;
+    public static final String USUARIO_DEMO = "aluno";
+    public static final String SENHA_DEMO = "1234";
     private MulticastConfig() {}
 
     public static String json(String tipo, String mensagem, long timestamp) {

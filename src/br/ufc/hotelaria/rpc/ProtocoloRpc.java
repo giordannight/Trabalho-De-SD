@@ -16,16 +16,36 @@ import java.util.List;
 
 /** Ex. 3: protocolo binário explícito de request/reply; não depende de serialização Java nativa. */
 public final class ProtocoloRpc {
-    private static final int REQ = 0x48525131; // HRQ1
+    private static final int REQ = 0x48525133; // HRQ3
     private static final int REP = 0x48525031; // HRP1
     private static final int LIMITE = 10_000;
+    private static final int LIMITE_ARGUMENTOS = 16;
+    public static final String REFERENCIA_RESERVAS = "hotelaria.reservas";
+    public static final String REFERENCIA_MULTICAST = "hotelaria.multicast";
     private ProtocoloRpc() {}
 
-    public record Requisicao(String operacao, int reservaId, int meioId, int hospedeId,
-                             String hospedeNome, long entradaEpoch, long saidaEpoch, int unidades) {
+    public record Requisicao(String objectReference, String methodID,
+                             int reservaId, int meioId, int hospedeId,
+                             String hospedeNome, long entradaEpoch, long saidaEpoch, int unidades,
+                             List<String> argumentos) {
         public Requisicao {
-            if (operacao == null || operacao.isBlank()) throw new IllegalArgumentException("Operação obrigatória");
+            if (objectReference == null || objectReference.isBlank())
+                throw new IllegalArgumentException("Referência do objeto remoto obrigatória");
+            if (methodID == null || methodID.isBlank())
+                throw new IllegalArgumentException("Identificador do método obrigatório");
             if (hospedeNome == null) hospedeNome = "";
+            if (argumentos == null || argumentos.size() > LIMITE_ARGUMENTOS)
+                throw new IllegalArgumentException("Quantidade de argumentos inválida");
+            argumentos = List.copyOf(argumentos);
+        }
+        public Requisicao(String objectReference, String methodID, int reservaId, int meioId,
+                          int hospedeId, String hospedeNome, long entradaEpoch,
+                          long saidaEpoch, int unidades) {
+            this(objectReference, methodID, reservaId, meioId, hospedeId, hospedeNome,
+                    entradaEpoch, saidaEpoch, unidades, List.of());
+        }
+        public Requisicao(String objectReference, String methodID, List<String> argumentos) {
+            this(objectReference, methodID, 0, 0, 0, "", 0, 0, 0, argumentos);
         }
     }
     public record Resposta(boolean sucesso, String mensagem, int disponibilidade,
@@ -34,7 +54,8 @@ public final class ProtocoloRpc {
     public static void enviarRequisicao(OutputStream destino, Requisicao req) throws IOException {
         DataOutputStream out = new DataOutputStream(destino);
         out.writeInt(REQ);
-        out.writeUTF(req.operacao());
+        out.writeUTF(req.objectReference());
+        out.writeUTF(req.methodID());
         out.writeInt(req.reservaId());
         out.writeInt(req.meioId());
         out.writeInt(req.hospedeId());
@@ -42,13 +63,29 @@ public final class ProtocoloRpc {
         out.writeLong(req.entradaEpoch());
         out.writeLong(req.saidaEpoch());
         out.writeInt(req.unidades());
+        out.writeInt(req.argumentos().size());
+        for (String argumento : req.argumentos()) out.writeUTF(argumento);
         out.flush();
     }
     public static Requisicao lerRequisicao(InputStream origem) throws IOException {
         DataInputStream in = new DataInputStream(origem);
-        if (in.readInt() != REQ) throw new IOException("Cabeçalho HRQ1 de request inválido");
-        return new Requisicao(in.readUTF(), in.readInt(), in.readInt(), in.readInt(),
-                in.readUTF(), in.readLong(), in.readLong(), in.readInt());
+        if (in.readInt() != REQ) throw new IOException("Cabeçalho HRQ3 de request inválido");
+        String objectReference = in.readUTF();
+        String methodID = in.readUTF();
+        int reservaId = in.readInt();
+        int meioId = in.readInt();
+        int hospedeId = in.readInt();
+        String hospedeNome = in.readUTF();
+        long entradaEpoch = in.readLong();
+        long saidaEpoch = in.readLong();
+        int unidades = in.readInt();
+        int qtdArgumentos = in.readInt();
+        if (qtdArgumentos < 0 || qtdArgumentos > LIMITE_ARGUMENTOS)
+            throw new IOException("Quantidade de argumentos fora do limite do protocolo");
+        List<String> argumentos = new ArrayList<>();
+        for (int i = 0; i < qtdArgumentos; i++) argumentos.add(in.readUTF());
+        return new Requisicao(objectReference, methodID, reservaId, meioId, hospedeId,
+                hospedeNome, entradaEpoch, saidaEpoch, unidades, argumentos);
     }
     public static void enviarResposta(OutputStream destino, Resposta rep) throws IOException {
         DataOutputStream out = new DataOutputStream(destino);

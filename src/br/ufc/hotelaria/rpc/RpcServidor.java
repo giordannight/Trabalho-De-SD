@@ -6,12 +6,19 @@ import br.ufc.hotelaria.modelo.Hotel;
 import br.ufc.hotelaria.modelo.Motel;
 import br.ufc.hotelaria.modelo.Pousada;
 import br.ufc.hotelaria.modelo.Reserva;
+import br.ufc.hotelaria.multicast.MulticastConfig;
 import br.ufc.hotelaria.servico.HospedagemService;
 import br.ufc.hotelaria.servico.ReservaService;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -28,8 +35,12 @@ public final class RpcServidor {
     }
 
     public ProtocoloRpc.Resposta processar(ProtocoloRpc.Requisicao req) {
+        if (ProtocoloRpc.REFERENCIA_MULTICAST.equals(req.objectReference()))
+            return processarMulticast(req);
+        if (!ProtocoloRpc.REFERENCIA_RESERVAS.equals(req.objectReference()))
+            return erro("Objeto remoto desconhecido: " + req.objectReference());
         try {
-            return switch (req.operacao().toUpperCase(java.util.Locale.ROOT)) {
+            return switch (req.methodID().toUpperCase(Locale.ROOT)) {
                 case "LISTAR" -> ok("Meios de hospedagem do " + hospedagens.nomeComplexo(), -1, 0,
                         hospedagens.listar(), List.of());
                 case "CONSULTAR" -> ok("Meio de hospedagem encontrado", -1, 0,
@@ -56,11 +67,58 @@ public final class RpcServidor {
                 case "DISPONIBILIDADE" -> ok("Unidades disponíveis no período",
                         reservas.disponibilidade(req.meioId(), LocalDate.ofEpochDay(req.entradaEpoch()),
                                 LocalDate.ofEpochDay(req.saidaEpoch())), 0, List.of(), List.of());
-                default -> erro("Operação desconhecida: " + req.operacao());
+                default -> erro("Método remoto desconhecido: " + req.methodID());
             };
         } catch (IllegalArgumentException | ArithmeticException e) {
             return erro(e.getMessage());
         }
+    }
+
+    private ProtocoloRpc.Resposta processarMulticast(ProtocoloRpc.Requisicao req) {
+        List<String> args = req.argumentos();
+        return switch (req.methodID().toUpperCase(Locale.ROOT)) {
+            case "AUTENTICAR" -> {
+                if (args.size() != 2) yield erro("AUTENTICAR requer usuário e senha");
+                boolean autorizado = MulticastConfig.USUARIO_DEMO.equals(args.get(0))
+                        && MulticastConfig.SENHA_DEMO.equals(args.get(1));
+                System.out.println("Autenticação multicast de " + args.get(0) + ": "
+                        + (autorizado ? "OK" : "NEGADA"));
+                yield autorizado ? ok("Acesso autorizado ao grupo multicast", -1, 0,
+                        List.of(), List.of()) : erro("Usuário/senha incorretos");
+            }
+            case "PUBLICAR" -> {
+                if (args.size() != 4) yield erro("PUBLICAR requer usuário, senha, tipo e mensagem");
+                if (!MulticastConfig.USUARIO_DEMO.equals(args.get(0))
+                        || !MulticastConfig.SENHA_DEMO.equals(args.get(1)))
+                    yield erro("Usuário/senha incorretos");
+                String tipo = args.get(2).toUpperCase(Locale.ROOT);
+                if (!tipo.equals("NOTIFICACAO") && !tipo.equals("ALERTA")
+                        && !tipo.equals("ATUALIZACAO"))
+                    yield erro("Tipo inválido. Use NOTIFICACAO, ALERTA ou ATUALIZACAO");
+                if (args.get(3).isBlank()) yield erro("Mensagem não pode ser vazia");
+                try {
+                    String datagrama = enviarMulticast(tipo, args.get(3));
+                    System.out.println("UDP multicast enviado: " + datagrama);
+                    yield ok("Mensagem multicast enviada", -1, 0, List.of(), List.of());
+                } catch (IOException e) {
+                    System.err.println("Erro ao enviar multicast: " + e.getMessage());
+                    yield erro("Falha ao enviar mensagem multicast");
+                }
+            }
+            default -> erro("Método multicast desconhecido: " + req.methodID());
+        };
+    }
+
+    private static String enviarMulticast(String tipo, String mensagem) throws IOException {
+        String datagrama = MulticastConfig.json(tipo, mensagem, System.currentTimeMillis());
+        byte[] bytes = datagrama.getBytes(StandardCharsets.UTF_8);
+        InetAddress grupo = InetAddress.getByName(MulticastConfig.GRUPO);
+        DatagramPacket pacote = new DatagramPacket(bytes, bytes.length, grupo, MulticastConfig.PORTA_UDP);
+        try (MulticastSocket emissor = new MulticastSocket()) {
+            emissor.setTimeToLive(1);
+            emissor.send(pacote);
+        }
+        return datagrama;
     }
     private static ProtocoloRpc.Resposta ok(String mensagem, int unidades, long centavos,
                                            List<br.ufc.hotelaria.modelo.MeioHospedagem> meios,
@@ -75,7 +133,9 @@ public final class RpcServidor {
         RpcServidor app = new RpcServidor();
         ExecutorService pool = Executors.newFixedThreadPool(8);
         try (ServerSocket servidor = new ServerSocket(porta)) {
-            System.out.println("Servidor de hotelaria ouvindo TCP:" + porta);
+            System.out.println("Servidor RPC ouvindo TCP:" + porta);
+            System.out.println("Objeto multicast: " + ProtocoloRpc.REFERENCIA_MULTICAST
+                    + " -> " + MulticastConfig.GRUPO + ":" + MulticastConfig.PORTA_UDP);
             while (true) {
                 Socket cliente = servidor.accept();
                 pool.submit(() -> {

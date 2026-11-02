@@ -14,6 +14,7 @@ O projeto implementa os **quatro exercícios obrigatórios** do enunciado e mant
 | Superclasse: Meios de Hospedagem | `modelo/MeioHospedagem.java` (singular, padrão de nome de classe) | Campos comuns: ID, nome, endereço, valor da diária e capacidade em unidades. |
 | Subclasses | `Hotel`, `Motel`, `Pousada` (`extends MeioHospedagem`) | Hotel: estrelas; motel: garagem privativa; pousada: café da manhã incluso. |
 | Agregação: Complexo Turístico | `ComplexoTuristico` | Reúne referências a estabelecimentos criados independentemente; desagregar não destrói o objeto. |
+| Agregação: Reserva e hóspede | `Reserva` mantém uma referência a `Hospede` | A reserva associa os dados do hóspede sem criar uma cópia do objeto recebido. |
 | Interface: Reservas | `contrato/Reservas.java` | Contrato: `registrarReserva`, `cancelarReserva`, `efetivarReserva`. |
 | Implementação da interface | `servico/ReservaService.java` | Verifica disponibilidade e mantém estados PENDENTE, EFETIVADA e CANCELADA. |
 | POJO adicional | `Hospede` e `Reserva` | Identificam a pessoa, as datas, o meio, a quantidade e o estado da reserva. |
@@ -32,7 +33,7 @@ Uma reserva recebe `id`, `meioHospedagemId`, `Hospede`, data de entrada, data de
 | 1. Saída personalizada | `streams/MeioHospedagemOutputStream.java extends OutputStream` | Construtor recebe `OutputStream destino`, `Reserva[] objetos`, `int quantidade`; envia array do **outro POJO Reserva** para `System.out`, arquivo e socket TCP. |
 | 2. Entrada personalizada | `streams/MeioHospedagemInputStream.java extends InputStream` | Construtor recebe `InputStream origem`; reconstrói `Reserva[]` usando `System.in`, arquivo e cliente TCP. |
 | 3. Serialização e request/reply | `rpc/ProtocoloRpc.java`, `RpcCliente.java`, `RpcServidor.java` | Cliente empacota pedido, servidor desempacota e executa, servidor empacota resposta, cliente desempacota; transmite `Hotel`/`Motel`/`Pousada` e `Reserva` em bytes via TCP. |
-| 4. Multicast | `multicast/*.java` | Login concorrente TCP 5003, notificações UDP multicast `230.0.0.1:5004`, `joinGroup`/`leaveGroup`, thread de recepção e thread de teclado em cada cliente; servidor com pools de threads. |
+| 4. Multicast e Trabalho 2 | `rpc/*.java`, `multicast/*.java` | Objeto remoto multicast acessado por RPC/TCP 5002; publicação dos avisos por UDP `230.0.0.1:5004`; clientes usam `joinGroup`/`leaveGroup`, thread de recepção e thread de interação; servidor atende chamadas em pool de threads. |
 | Questão extra | `extra/*.java` | Sistema de votação didático **independente** do domínio de hotelaria, mantido para atender ao exercício opcional. Login/voto TCP, avisos UDP e apuração com prazo. |
 | Testes e repositório | `testes/Testes.java`, `testar_integracao.sh`, `evidencias/` | Testes automatizados, demonstrações reais de dois processos e registros de execução. |
 
@@ -110,7 +111,7 @@ java -cp out br.ufc.hotelaria.streams.StreamsDemo cliente-tcp 127.0.0.1 5001
 
 O servidor imprime as três reservas reconstruídas e encerra depois de atender a conexão de demonstração.
 
-## 5. Exercício 3 — Serviço remoto de reservas via TCP
+## 5. Trabalho 2 — Reimplementação da questão 4 como objeto remoto
 
 **Terminal 1 (servidor):**
 
@@ -118,7 +119,9 @@ O servidor imprime as três reservas reconstruídas e encerra depois de atender 
 java -cp out br.ufc.hotelaria.rpc.RpcServidor 5002
 ```
 
-**Terminal 2 (cliente, um comando de cada vez):**
+O servidor publica dois objetos remotos, identificados no protocolo pelo campo `objectReference`: `hotelaria.reservas` e `hotelaria.multicast`. No segundo, o cliente chama `AUTENTICAR` e `PUBLICAR` via TCP; o servidor valida as credenciais e executa a publicação UDP multicast. A entrega UDP mantém o requisito da questão 4, enquanto autenticação e solicitação do serviço são invocações remotas request/reply.
+
+**Cliente de reservas (comandos remotos):**
 
 ```bash
 # Ver os três tipos concretos do Complexo Turístico.
@@ -142,33 +145,33 @@ java -cp out br.ufc.hotelaria.rpc.RpcCliente localhost 5002 RESERVAS
 
 **Como demonstrar erro de capacidade:** reinicie o servidor; registre cinco unidades do Hotel 1 no mesmo período e tente registrar mais uma em outra reserva. A segunda solicitação retorna `Sucesso: false` com a mensagem de unidades indisponíveis. Cancelar a primeira devolve a disponibilidade.
 
-**Serialização:** a requisição usa `HRQ1`, nome da operação, IDs, nome da pessoa, datas em `epochDay` e quantidade. A resposta usa `HRP1`, sucesso/mensagem, disponibilidade, preço e listas de meios e reservas. Para `MeioHospedagem`, o protocolo envia um discriminador `HOTEL`, `MOTEL` ou `POUSADA`, depois os atributos comuns e o atributo específico da subclasse. Assim o cliente reconstrói o **subtipo correto**; para `Reserva`, reaproveita o `ReservaCodec`. O servidor atende múltiplos sockets TCP por um pool de oito threads.
+**Invocação remota:** cada request identifica o objeto servidor por `objectReference` (`hotelaria.reservas` ou `hotelaria.multicast`) e o método por `methodID` (por exemplo, `LISTAR`, `REGISTRAR`, `AUTENTICAR` ou `PUBLICAR`), além dos argumentos. O cliente passa uma referência textual ao serviço, não envia uma cópia do objeto de serviço; o servidor resolve essa referência para a instância local correspondente e executa o método pedido. A aplicação expõe mais de quatro métodos remotos.
+
+**Representação externa:** a requisição usa o cabeçalho `HRQ3`, referência, método e argumentos; as operações de reservas também carregam IDs, nome, datas em `epochDay` e quantidade. A resposta usa `HRP1`, sucesso/mensagem, disponibilidade, preço e listas de meios e reservas. Os POJOs retornados são serializados por valor: para `MeioHospedagem`, o protocolo envia um discriminador `HOTEL`, `MOTEL` ou `POUSADA`, os atributos comuns e o atributo específico da subclasse; assim, o cliente reconstrói o subtipo correto. Para `Reserva`, reaproveita o `ReservaCodec`. O servidor atende múltiplos sockets TCP por um pool de oito threads.
 
 ## 6. Exercício 4 — Autenticação TCP e multicast UDP
 
-Abra quatro terminais. No **servidor**:
+O mesmo serviço da questão 4 está exposto como objeto remoto: iniciar o servidor RPC também disponibiliza o serviço de autenticação/publicação multicast. O executável antigo `MulticastServidor` continua aceito como atalho para iniciar esse mesmo servidor.
 
 ```bash
-java -cp out br.ufc.hotelaria.multicast.MulticastServidor
+java -cp out br.ufc.hotelaria.rpc.RpcServidor 5002
 ```
 
-Nos **clientes 1 e 2**, execute o mesmo comando em terminais diferentes:
+Em dois terminais de cliente, execute:
 
 ```bash
 java -cp out br.ufc.hotelaria.multicast.MulticastCliente localhost aluno 1234
 ```
 
-Após os dois logins, digite no terminal do servidor:
+Após a resposta de login, cada cliente entra no grupo multicast. Na interação do cliente 1, publique uma notificação:
 
 ```text
 ALERTA|Última suíte disponível na pousada
-NOTIFICACAO|Nova reserva registrada no complexo
-ATUALIZACAO|Horários de entrada atualizados
 ```
 
-Os dois clientes exibem o mesmo JSON em tempo real, como `{"tipo":"ALERTA","mensagem":"Última suíte disponível na pousada","timestamp":...}`. O servidor também envia uma atualização automática periódica: ela é produzida em thread diferente das mensagens digitadas. Em cada cliente, digite `sair`: a thread de teclado informa à thread UDP para encerrar e o cliente chama `leaveGroup`. Digite `sair` no servidor para encerrá-lo.
+O cliente envia a operação `PUBLICAR` ao objeto remoto pelo TCP. O servidor responde ao request e envia o JSON por UDP; ambos os clientes recebem o mesmo aviso. Os tipos aceitos são `NOTIFICACAO`, `ALERTA` e `ATUALIZACAO`. A senha é verificada nas chamadas de autenticação e publicação. Digite `sair` em cada cliente para encerrar a escuta e executar `leaveGroup`; o servidor pode ser encerrado com Ctrl+C.
 
-Portas e grupo: **5003/TCP** para login; **230.0.0.1:5004/UDP** para avisos. O endereço `230.0.0.1` pertence à faixa IPv4 multicast (classe D). TTL 1 limita o envio à rede local. Se estiver em VPN ou rede que bloqueia multicast, execute os processos na mesma máquina. Login é validação demonstrativa na aplicação cliente: por si só, UDP multicast não restringe um programa externo que conheça o grupo.
+Portas e grupo: **5002/TCP** para chamadas remotas; **230.0.0.1:5004/UDP** para avisos. O endereço `230.0.0.1` pertence à faixa IPv4 multicast (classe D). TTL 1 limita o envio à rede local. Se estiver em VPN ou rede que bloqueia multicast, execute os processos na mesma máquina. Para outro servidor/porta, passe ao cliente `HOST USUARIO SENHA PORTA`.
 
 ## 7. Questão extra — módulo isolado de votação
 
