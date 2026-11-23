@@ -205,7 +205,32 @@ O script compila e testa os streams nos três tipos de destino/origem, RPC com r
 
 Sem persistência: reiniciar os processos restaura os dados de exemplo. As reservas trabalham com dias completos e quantidade agregada de unidades (não com números de quartos específicos, pagamentos ou documentos). Para operação real seriam necessários banco de dados transacional, autenticação/autorização robusta, TLS, observabilidade e política consistente de reservas e cancelamentos.
 
-## 9. Organização do repositório
+## 9. Trabalho 3 - API REST
+
+A implementação também contém uma API REST independente em `api-server/`, escolhida como alternativa de comunicação para o Trabalho 3.
+Os clientes separados estão em `api-client-js/` e `api-client-python/`, ambos consumindo HTTP/JSON e não usando sockets ou RMI.
+
+O relatório completo está em `RELATORIO_TRABALHO_3.md`.
+
+```bat
+cd api-server
+compilar.bat
+executar.bat
+```
+
+Em outros terminais:
+
+```bat
+cd api-client-js
+node cliente.js aluno 1234
+```
+
+```bat
+cd api-client-python
+python cliente.py aluno 1234
+```
+
+## 10. Organização do repositório
 
 ```text
 trabalho_hotelaria_comunicacao/
