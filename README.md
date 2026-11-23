@@ -212,6 +212,8 @@ Os clientes separados estão em `api-client-js/` e `api-client-python/`, ambos c
 
 O relatório completo está em `RELATORIO_TRABALHO_3.md`.
 
+**Repositório:** https://github.com/giordannight/Trabalho-De-SD
+
 ```bat
 cd api-server
 compilar.bat
@@ -243,6 +245,10 @@ trabalho_hotelaria_comunicacao/
 │   ├── multicast/    MulticastConfig, MulticastServidor, MulticastCliente
 │   ├── extra/        Questão extra independente
 │   └── testes/       Testes
+├── api-server/       Servidor HTTP/JSON em Java com três objetos distribuídos
+├── api-client-js/    Cliente independente em Node.js
+├── api-client-python/Cliente independente em Python
+├── RELATORIO_TRABALHO_3.md
 ├── diagrama_classes.puml
 ├── ROTEIRO_APRESENTACAO.md
 ├── README.md
