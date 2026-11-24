@@ -1,1 +1,6 @@
-Servidor de hotelaria ouvindo TCP:15002
+Servidor RPC ouvindo TCP:15002
+Objeto multicast: hotelaria.multicast -> 230.0.0.1:5004
+Autenticação multicast de aluno: OK
+Autenticação multicast de aluno: OK
+UDP multicast enviado: {"tipo":"ALERTA","mensagem":"Ultima suite disponivel","timestamp":1795522965082}
+Autenticação multicast de aluno: NEGADA

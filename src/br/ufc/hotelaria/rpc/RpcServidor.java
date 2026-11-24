@@ -1,5 +1,6 @@
 package br.ufc.hotelaria.rpc;
 
+import br.ufc.hotelaria.fila.PublicadorEventos;
 import br.ufc.hotelaria.modelo.ComplexoTuristico;
 import br.ufc.hotelaria.modelo.Hospede;
 import br.ufc.hotelaria.modelo.Hotel;
@@ -16,6 +17,7 @@ import java.net.MulticastSocket;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
@@ -27,8 +29,17 @@ public final class RpcServidor {
     private final HospedagemService hospedagens =
             new HospedagemService(new ComplexoTuristico("Complexo Turístico Dunas"));
     private final ReservaService reservas = new ReservaService(hospedagens);
+    private final PublicadorEventos publicador;
 
     public RpcServidor() {
+        try {
+            String host = System.getenv().getOrDefault("HOTELARIA_FILA_HOST", "127.0.0.1");
+            int porta = Integer.parseInt(System.getenv().getOrDefault("HOTELARIA_FILA_PORT", "5050"));
+            Path pasta = Path.of(System.getenv().getOrDefault("HOTELARIA_OUTBOX_DIR", "dados_outbox"));
+            publicador = new PublicadorEventos(host, porta, pasta);
+        } catch (IOException e) {
+            throw new IllegalStateException("Não foi possível inicializar a outbox", e);
+        }
         hospedagens.cadastrar(new Hotel(1, "Hotel Praia Azul", "Av. Beira-Mar, 10", 35000, 5, 4));
         hospedagens.cadastrar(new Motel(2, "Motel Sol", "Rua das Flores, 20", 18000, 3, true));
         hospedagens.cadastrar(new Pousada(3, "Pousada do Bosque", "Rua Verde, 30", 22000, 2, true));
@@ -51,13 +62,19 @@ public final class RpcServidor {
                             LocalDate.ofEpochDay(req.entradaEpoch()), LocalDate.ofEpochDay(req.saidaEpoch()),
                             req.unidades());
                     Reserva salva = reservas.registrarReserva(nova);
+                    publicador.publicar("RESERVA_CRIADA", salva);
                     yield ok("Reserva registrada", -1, reservas.valorReservaCentavos(salva.getId()),
                             List.of(), List.of(salva));
                 }
-                case "CANCELAR" -> ok("Reserva cancelada", -1, 0,
-                        List.of(), List.of(reservas.cancelarReserva(req.reservaId())));
+                case "CANCELAR" -> {
+                    Reserva cancelada = reservas.cancelarReserva(req.reservaId());
+                    publicador.publicar("RESERVA_CANCELADA", cancelada);
+                    yield ok("Reserva cancelada", -1, 0,
+                            List.of(), List.of(cancelada));
+                }
                 case "EFETIVAR" -> {
                     Reserva efetivada = reservas.efetivarReserva(req.reservaId());
+                    publicador.publicar("RESERVA_EFETIVADA", efetivada);
                     yield ok("Reserva efetivada", -1, reservas.valorReservaCentavos(efetivada.getId()),
                             List.of(), List.of(efetivada));
                 }

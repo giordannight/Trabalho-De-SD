@@ -256,3 +256,54 @@ trabalho_hotelaria_comunicacao/
 ├── testar_integracao.sh
 └── evidencias/
 ```
+
+## 11. Trabalho 4 — Comunicação indireta com filas persistentes
+
+O Trabalho 4 acrescenta uma **Opção C: filas de mensagens persistentes** ao projeto principal.
+Mudanças nas reservas continuam usando RPC/TCP, mas agora são publicadas assincronamente por uma
+outbox local e enviadas a um broker independente:
+
+```text
+Cliente RPC -> Servidor de Reservas -> Outbox -> Broker/Fila persistente -> Consumidor -> ACK
+```
+
+Arquivos principais:
+
+```text
+src/br/ufc/hotelaria/fila/
+├── FilaServidor.java
+├── FilaCliente.java
+├── FilaPublicador.java
+├── FilaConsumidor.java
+└── PublicadorEventos.java
+
+RELATORIO_TRABALHO4.md
+testar_trabalho4.sh
+```
+
+### Executar
+
+Em três terminais, na raiz do projeto:
+
+```bash
+# Terminal 1
+java -cp out br.ufc.hotelaria.fila.FilaServidor 5050 dados_fila 5000
+
+# Terminal 2
+java -cp out br.ufc.hotelaria.rpc.RpcServidor 5002
+
+# Terminal 3
+java -cp out br.ufc.hotelaria.rpc.RpcCliente localhost 5002 REGISTRAR 801 1 51 "Ana Lima" 2027-10-10 2027-10-13 2
+java -cp out br.ufc.hotelaria.fila.FilaConsumidor localhost 5050 --uma
+```
+
+Também é possível testar a persistência e a recuperação em Linux, macOS ou Git Bash:
+
+```bash
+bash compilar.sh
+bash testar_trabalho4.sh
+```
+
+O servidor RPC aceita as variáveis `HOTELARIA_FILA_HOST`, `HOTELARIA_FILA_PORT` e
+`HOTELARIA_OUTBOX_DIR`. A arquitetura fornece desacoplamento espacial e temporal, persistência
+de mensagens e reentrega após falha de ACK. A semântica demonstrada é **pelo menos uma vez**.

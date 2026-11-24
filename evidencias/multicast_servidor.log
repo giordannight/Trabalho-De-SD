@@ -1,9 +1,6 @@
-Autentica??o: TCP 5003
-Grupo UDP: 230.0.0.1:5004
-Login de demonstra??o: aluno / 1234
-Digite TIPO|mensagem (NOTIFICACAO, ALERTA, ATUALIZACAO), ou sair:
-Autentica??o TCP de aluno: OK
-Autentica??o TCP de aluno: OK
-UDP enviado: {"tipo":"ALERTA","mensagem":"Ultima suite disponivel","timestamp":1790188949718}
-UDP enviado: {"tipo":"ATUALIZACAO","mensagem":"Servidor de reservas ativo","timestamp":1790188951064}
-Autentica??o TCP de aluno: NEGADA
+Servidor RPC ouvindo TCP:15002
+Objeto multicast: hotelaria.multicast -> 230.0.0.1:5004
+Autenticação multicast de aluno: OK
+Autenticação multicast de aluno: OK
+UDP multicast enviado: {"tipo":"ALERTA","mensagem":"Ultima suite disponivel","timestamp":1795522965082}
+Autenticação multicast de aluno: NEGADA

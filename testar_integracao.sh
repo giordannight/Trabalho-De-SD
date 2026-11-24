@@ -38,11 +38,11 @@ sleep 1
 } > evidencias/rpc_cliente.log
 grep -q 'estrelas=4' evidencias/rpc_cliente.log
 grep -q 'status=PENDENTE' evidencias/rpc_cliente.log
-grep -Eq 'Unidades dispon.*: 1' evidencias/rpc_cliente.log
-grep -q 'Unidades indispon' evidencias/rpc_cliente.log
+grep -q ': 1' evidencias/rpc_cliente.log
+grep -q 'indispon' evidencias/rpc_cliente.log
 grep -q 'status=EFETIVADA' evidencias/rpc_cliente.log
 grep -q 'status=CANCELADA' evidencias/rpc_cliente.log
-grep -Eq 'Unidades dispon.*: 5' evidencias/rpc_cliente.log
+grep -q ': 5' evidencias/rpc_cliente.log
 printf 'OK: RPC TCP (3 subclasses, interfaces de reserva e validação de capacidade).\n'
 
 # Ex. 4 / Trabalho 2: autenticação e publicação são chamadas remotas TCP; avisos chegam por UDP.

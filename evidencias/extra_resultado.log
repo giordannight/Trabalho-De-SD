@@ -1,5 +1,5 @@
-<resposta sucesso="true" mensagem="Login efetuado; papel=ADMIN"><candidatos><candidato id="1" nome="Op??o A"/><candidato id="2" nome="Op??o B"/></candidatos></resposta>
+<resposta sucesso="true" mensagem="Login efetuado; papel=ADMIN"><candidatos><candidato id="1" nome="Opção A"/><candidato id="2" nome="Opção B"/></candidatos></resposta>
 Comandos: listar | adicionar NOME | remover ID | nota TEXTO | resultado | sair
-Servidor: Apura??o conclu?da
-<resposta sucesso="true" mensagem="Apura??o conclu?da"><apuracao total="2"><candidato id="1" nome="Op??o A" votos="1" percentual="50.00"/><candidato id="2" nome="Op??o B" votos="1" percentual="50.00"/><desfecho valor="EMPATE"/></apuracao></resposta>
-Sess?o encerrada.
+Servidor: Apuração concluída
+<resposta sucesso="true" mensagem="Apuração concluída"><apuracao total="2"><candidato id="1" nome="Opção A" votos="1" percentual="50.00"/><candidato id="2" nome="Opção B" votos="1" percentual="50.00"/><desfecho valor="EMPATE"/></apuracao></resposta>
+Sessão encerrada.
