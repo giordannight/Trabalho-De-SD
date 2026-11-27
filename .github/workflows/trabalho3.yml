@@ -1,4 +1,4 @@
-name: Validar Trabalho 4
+name: Validar Trabalho 3
 on:
   push:
     branches: [trabalho4-fila-persistente]
@@ -19,4 +19,4 @@ jobs:
       - name: Testes existentes
         run: java -cp out br.ufc.hotelaria.testes.Testes
       - name: Testes de comunicação indireta
-        run: bash testar_trabalho4.sh
+        run: bash testar_trabalho3.sh

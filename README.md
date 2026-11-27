@@ -205,12 +205,12 @@ O script compila e testa os streams nos três tipos de destino/origem, RPC com r
 
 Sem persistência: reiniciar os processos restaura os dados de exemplo. As reservas trabalham com dias completos e quantidade agregada de unidades (não com números de quartos específicos, pagamentos ou documentos). Para operação real seriam necessários banco de dados transacional, autenticação/autorização robusta, TLS, observabilidade e política consistente de reservas e cancelamentos.
 
-## 9. Trabalho 3 - API REST
+## 9. Trabalho 4 - API REST
 
-A implementação também contém uma API REST independente em `api-server/`, escolhida como alternativa de comunicação para o Trabalho 3.
+A implementação também contém uma API REST independente em `api-server/`, escolhida como alternativa de comunicação para o Trabalho 4.
 Os clientes separados estão em `api-client-js/` e `api-client-python/`, ambos consumindo HTTP/JSON e não usando sockets ou RMI.
 
-O relatório completo está em `RELATORIO_TRABALHO_3.md`.
+O relatório completo está em `RELATORIO_TRABALHO_4.md`.
 
 **Repositório:** https://github.com/giordannight/Trabalho-De-SD
 
@@ -248,7 +248,7 @@ trabalho_hotelaria_comunicacao/
 ├── api-server/       Servidor HTTP/JSON em Java com três objetos distribuídos
 ├── api-client-js/    Cliente independente em Node.js
 ├── api-client-python/Cliente independente em Python
-├── RELATORIO_TRABALHO_3.md
+├── RELATORIO_TRABALHO_4.md
 ├── diagrama_classes.puml
 ├── ROTEIRO_APRESENTACAO.md
 ├── README.md
@@ -257,9 +257,9 @@ trabalho_hotelaria_comunicacao/
 └── evidencias/
 ```
 
-## 11. Trabalho 4 — Comunicação indireta com filas persistentes
+## 11. Trabalho 3 — Comunicação indireta com filas persistentes
 
-O Trabalho 4 acrescenta uma **Opção C: filas de mensagens persistentes** ao projeto principal.
+O Trabalho 3 acrescenta uma **Opção C: filas de mensagens persistentes** ao projeto principal.
 Mudanças nas reservas continuam usando RPC/TCP, mas agora são publicadas assincronamente por uma
 outbox local e enviadas a um broker independente:
 
@@ -277,8 +277,8 @@ src/br/ufc/hotelaria/fila/
 ├── FilaConsumidor.java
 └── PublicadorEventos.java
 
-RELATORIO_TRABALHO4.md
-testar_trabalho4.sh
+RELATORIO_TRABALHO_3.md
+testar_trabalho3.sh
 ```
 
 ### Executar
@@ -301,7 +301,7 @@ Também é possível testar a persistência e a recuperação em Linux, macOS ou
 
 ```bash
 bash compilar.sh
-bash testar_trabalho4.sh
+bash testar_trabalho3.sh
 ```
 
 O servidor RPC aceita as variáveis `HOTELARIA_FILA_HOST`, `HOTELARIA_FILA_PORT` e

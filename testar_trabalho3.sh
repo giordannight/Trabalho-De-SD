@@ -44,7 +44,7 @@ echo 'OK: reentrega após falha antes de ACK.'
 HOTELARIA_FILA_HOST=localhost HOTELARIA_FILA_PORT="$FILA_PORT" HOTELARIA_OUTBOX_DIR="$TMP/outbox" java -cp out "$C.rpc.RpcServidor" "$RPC_PORT" > "$TMP/rpc.log" 2>&1 &
 RPC_PID=$!; PIDS+=("$RPC_PID")
 for i in {1..40}; do if java -cp out "$C.rpc.RpcCliente" localhost "$RPC_PORT" LISTAR >/dev/null 2>&1; then break; fi; sleep .2; done
-java -cp out "$C.rpc.RpcCliente" localhost "$RPC_PORT" REGISTRAR 901 1 77 "Teste Trabalho4" 2027-07-10 2027-07-12 1 > "$TMP/reserva.log"
+java -cp out "$C.rpc.RpcCliente" localhost "$RPC_PORT" REGISTRAR 901 1 77 "Teste Trabalho3" 2027-07-10 2027-07-12 1 > "$TMP/reserva.log"
 grep -q 'Reserva registrada' "$TMP/reserva.log"
 pendentes 1
 java -cp out "$C.fila.FilaConsumidor" localhost "$FILA_PORT" --uma > "$TMP/integracao.log"
@@ -62,4 +62,4 @@ java -cp out "$C.fila.FilaConsumidor" localhost "$FILA_PORT" --uma > "$TMP/recup
 grep -q 'RESERVA_EFETIVADA|reserva=901' "$TMP/recuperacao.log"
 pendentes 0
 echo 'OK: broker offline; outbox recuperada.'
-echo 'SUCESSO: Trabalho 4.'
+echo 'SUCESSO: Trabalho 3.'
