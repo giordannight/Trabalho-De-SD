@@ -205,32 +205,48 @@ O script compila e testa os streams nos três tipos de destino/origem, RPC com r
 
 Sem persistência: reiniciar os processos restaura os dados de exemplo. As reservas trabalham com dias completos e quantidade agregada de unidades (não com números de quartos específicos, pagamentos ou documentos). Para operação real seriam necessários banco de dados transacional, autenticação/autorização robusta, TLS, observabilidade e política consistente de reservas e cancelamentos.
 
-## 9. Trabalho 4 - API REST
+## 9. Trabalho 3 — Comunicação indireta com filas persistentes
 
-A implementação também contém uma API REST independente em `api-server/`, escolhida como alternativa de comunicação para o Trabalho 4.
-Os clientes separados estão em `api-client-js/` e `api-client-python/`, ambos consumindo HTTP/JSON e não usando sockets ou RMI.
+O Trabalho 3 implementa a **Opção C: filas de mensagens persistentes**. As operações de reserva
+continuam sendo solicitadas via RPC/TCP, mas seus eventos seguem assincronamente por uma outbox
+local até um broker independente:
 
-O relatório completo está em `RELATORIO_TRABALHO_4.md`.
-
-**Repositório:** https://github.com/giordannight/Trabalho-De-SD
-
-```bat
-cd api-server
-compilar.bat
-executar.bat
+```text
+Cliente RPC -> Servidor de Reservas -> Outbox -> Broker/Fila persistente -> Consumidor -> ACK
 ```
 
-Em outros terminais:
+### Teste manual no Windows
+
+Compile o projeto na raiz com `compilar.bat`. Depois abra três terminais, todos na raiz:
 
 ```bat
-cd api-client-js
-node cliente.js aluno 1234
+java -cp out br.ufc.hotelaria.fila.FilaServidor 5050 dados_fila 5000
 ```
 
 ```bat
-cd api-client-python
-python cliente.py aluno 1234
+java -cp out br.ufc.hotelaria.rpc.RpcServidor 5002
 ```
+
+```bat
+java -cp out br.ufc.hotelaria.rpc.RpcCliente localhost 5002 REGISTRAR 801 1 51 "Ana Lima" 2027-10-10 2027-10-13 2
+java -cp out br.ufc.hotelaria.fila.FilaPublicador localhost 5050 ESTADO
+java -cp out br.ufc.hotelaria.fila.FilaConsumidor localhost 5050 --uma
+```
+
+O estado deve mostrar uma mensagem pendente antes de iniciar o consumidor; após o consumo, ele
+exibe o evento e `CONFIRMADO`. Para demonstrar reentrega, publique um evento de teste e rode:
+
+```bat
+java -cp out br.ufc.hotelaria.fila.FilaPublicador localhost 5050 EVENTO_DE_TESTE
+java -cp out br.ufc.hotelaria.fila.FilaConsumidor localhost 5050 --sem-ack
+```
+
+Espere o lease expirar (5 segundos) e execute `FilaConsumidor localhost 5050 --uma` novamente.
+O evento deve ser entregue outra vez. Não apague `dados_fila` durante a demonstração de
+persistência. O relatório está em `RELATORIO_TRABALHO_3.md`.
+
+O servidor RPC aceita `HOTELARIA_FILA_HOST`, `HOTELARIA_FILA_PORT` e `HOTELARIA_OUTBOX_DIR`.
+O teste automatizado, disponível em Linux/macOS ou Git Bash, é `bash testar_trabalho3.sh`.
 
 ## 10. Organização do repositório
 
@@ -257,53 +273,35 @@ trabalho_hotelaria_comunicacao/
 └── evidencias/
 ```
 
-## 11. Trabalho 3 — Comunicação indireta com filas persistentes
+## 11. Trabalho 4 — API REST
 
-O Trabalho 3 acrescenta uma **Opção C: filas de mensagens persistentes** ao projeto principal.
-Mudanças nas reservas continuam usando RPC/TCP, mas agora são publicadas assincronamente por uma
-outbox local e enviadas a um broker independente:
+O Trabalho 4 disponibiliza o sistema de hotelaria por uma API REST HTTP/JSON em `api-server/`.
+Os clientes independentes em `api-client-js/` e `api-client-python/` demonstram o acesso usando
+Node.js e Python. O relatório está em `RELATORIO_TRABALHO_4.md`.
 
-```text
-Cliente RPC -> Servidor de Reservas -> Outbox -> Broker/Fila persistente -> Consumidor -> ACK
+### Teste manual no Windows
+
+Compile o servidor em uma janela:
+
+```bat
+cd api-server
+compilar.bat
+java -cp out br.ufc.hotelaria.api.ApiServidor 18080
 ```
 
-Arquivos principais:
+Em outros terminais, a partir da raiz do repositório, rode os clientes apontando para a mesma
+porta:
 
-```text
-src/br/ufc/hotelaria/fila/
-├── FilaServidor.java
-├── FilaCliente.java
-├── FilaPublicador.java
-├── FilaConsumidor.java
-└── PublicadorEventos.java
-
-RELATORIO_TRABALHO_3.md
-testar_trabalho3.sh
+```bat
+set API_URL=http://localhost:18080/api
+node api-client-js\cliente.js aluno 1234
 ```
 
-### Executar
-
-Em três terminais, na raiz do projeto:
-
-```bash
-# Terminal 1
-java -cp out br.ufc.hotelaria.fila.FilaServidor 5050 dados_fila 5000
-
-# Terminal 2
-java -cp out br.ufc.hotelaria.rpc.RpcServidor 5002
-
-# Terminal 3
-java -cp out br.ufc.hotelaria.rpc.RpcCliente localhost 5002 REGISTRAR 801 1 51 "Ana Lima" 2027-10-10 2027-10-13 2
-java -cp out br.ufc.hotelaria.fila.FilaConsumidor localhost 5050 --uma
+```bat
+set API_URL=http://localhost:18080/api
+python api-client-python\cliente.py aluno 1234
 ```
 
-Também é possível testar a persistência e a recuperação em Linux, macOS ou Git Bash:
-
-```bash
-bash compilar.sh
-bash testar_trabalho3.sh
-```
-
-O servidor RPC aceita as variáveis `HOTELARIA_FILA_HOST`, `HOTELARIA_FILA_PORT` e
-`HOTELARIA_OUTBOX_DIR`. A arquitetura fornece desacoplamento espacial e temporal, persistência
-de mensagens e reentrega após falha de ACK. A semântica demonstrada é **pelo menos uma vez**.
+Os clientes listam hospedagens, verificam disponibilidade, criam e efetivam ou cancelam reservas,
+autenticam o usuário e publicam notificações. A porta `18080` evita conflito quando outro programa
+já estiver usando a porta padrão `8080`.
